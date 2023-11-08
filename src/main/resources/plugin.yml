@@ -1,0 +1,12 @@
+name: MinemuDeathChest
+version: '${project.version}'
+main: es.minemu.minemu.Minemu
+author: 'Javier'
+api-version: '1.20'
+folia-supported: true
+commands:
+  deathchest:
+    description: Comando de Death Chest
+    usage: /deathchest
+    permission: deathchest.use
+
