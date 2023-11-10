@@ -46,7 +46,7 @@ public class Minemu extends JavaPlugin implements Listener {
         Chest chest = (Chest) deathLocation.getBlock().getState();
         Location chestLocation = chest.getLocation();
 
-        // Guarda la ubicación del cofre, el UUID del jugador al que pertenece y el nombre del jugador en el archivo YAML
+    
         dataConfig.set("chests." + chestLocation.toString() + ".uuid", player.getUniqueId().toString());
         dataConfig.set("chests." + chestLocation.toString() + ".owner", player.getName());
 
