@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -17,6 +18,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 
 public class Minemu extends JavaPlugin implements Listener {
 
@@ -27,7 +29,7 @@ public class Minemu extends JavaPlugin implements Listener {
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
 
-        // Carga o crea el archivo de configuración
+
         dataFile = new File(getDataFolder(), "data.yml");
         if (!dataFile.exists()) {
             saveResource("data.yml", false);
@@ -44,7 +46,10 @@ public class Minemu extends JavaPlugin implements Listener {
         Chest chest = (Chest) deathLocation.getBlock().getState();
         Location chestLocation = chest.getLocation();
 
-        dataConfig.set(chestLocation.toString(), player.getName());
+        // Guarda la ubicación del cofre, el UUID del jugador al que pertenece y el nombre del jugador en el archivo YAML
+        dataConfig.set("chests." + chestLocation.toString() + ".uuid", player.getUniqueId().toString());
+        dataConfig.set("chests." + chestLocation.toString() + ".owner", player.getName());
+
 
         saveDataConfig();
 
@@ -58,7 +63,6 @@ public class Minemu extends JavaPlugin implements Listener {
 
         player.getInventory().clear();
 
-
         player.sendMessage(ChatColor.YELLOW + "Tu inventario ha sido guardado en un cofre en tu ubicación de muerte. " +
                 "Coordenadas: X=" + deathLocation.getBlockX() + ", Y=" + deathLocation.getBlockY() + ", Z=" + deathLocation.getBlockZ());
     }
@@ -68,9 +72,18 @@ public class Minemu extends JavaPlugin implements Listener {
         if (event.getBlock().getType() == Material.CHEST) {
             Location chestLocation = event.getBlock().getLocation();
 
+            if (dataConfig.contains("chests." + chestLocation.toString())) {
+                String ownerUUID = dataConfig.getString("chests." + chestLocation.toString() + ".uuid");
+                UUID playerUUID = event.getPlayer().getUniqueId();
 
-            dataConfig.set(chestLocation.toString(), null);
-            saveDataConfig();
+                if (ownerUUID.equals(playerUUID.toString()) || event.getPlayer().isOp()) {
+                    dataConfig.set("chests." + chestLocation.toString(), null);
+                    saveDataConfig();
+                } else {
+                    event.setCancelled(true);
+                    event.getPlayer().sendMessage("No tienes permisos para romper este cofre.");
+                }
+            }
         }
     }
 
@@ -81,26 +94,29 @@ public class Minemu extends JavaPlugin implements Listener {
                 Location chestLocation = event.getClickedBlock().getLocation();
                 Player player = event.getPlayer();
 
+                if (dataConfig.contains("chests." + chestLocation.toString())) {
+                    String ownerUUID = dataConfig.getString("chests." + chestLocation.toString() + ".uuid");
+                    UUID playerUUID = player.getUniqueId();
 
-                if (dataConfig.contains(chestLocation.toString()) && dataConfig.getString(chestLocation.toString()).equals(player.getName())) {
-                    // Elimina la información del cofre del archivo YAML
-                    dataConfig.set(chestLocation.toString(), null);
-                    saveDataConfig();
-
-         
-                    Chest chest = (Chest) event.getClickedBlock().getState();
-                    Location dropLocation = chestLocation.clone().add(0.5, 1.0, 0.5);
-                    for (ItemStack item : chest.getInventory().getContents()) {
-                        if (item != null) {
-                            event.getClickedBlock().getWorld().dropItemNaturally(dropLocation, item);
+                    if (ownerUUID.equals(playerUUID.toString()) || player.isOp()) {
+                        Chest chest = (Chest) event.getClickedBlock().getState();
+                        Location dropLocation = chestLocation.clone().add(0.5, 1.0, 0.5);
+                        for (ItemStack item : chest.getInventory().getContents()) {
+                            if (item != null) {
+                                event.getClickedBlock().getWorld().dropItemNaturally(dropLocation, item);
+                            }
                         }
+
+                        event.getClickedBlock().setType(Material.AIR);
+
+                        dataConfig.set("chests." + chestLocation.toString(), null);
+                        saveDataConfig();
+
+                        player.sendMessage("Has recuperado tus objetos del cofre en tu ubicación de muerte. ");
+                    } else {
+                        event.setCancelled(true);
+                        event.getPlayer().sendMessage("No tienes permisos para abrir este cofre.");
                     }
-
-   
-                    event.getClickedBlock().setType(Material.AIR);
-
-
-                    player.sendMessage("Has recuperado tus objetos del cofre en tu ubicación de muerte. ");
                 }
             }
         }
